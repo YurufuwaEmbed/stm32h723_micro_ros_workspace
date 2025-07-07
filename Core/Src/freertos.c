@@ -36,6 +36,7 @@
 #include <std_msgs/msg/int32.h>
 #include <std_msgs/msg/string.h>
 #include <rosidl_runtime_c/string_functions.h>
+#include "lwip/netif.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -66,6 +67,7 @@ rclc_support_t support;
 rcl_node_t node;
 std_msgs__msg__String msg;
 
+extern struct netif gnetif;
 /* USER CODE END Variables */
 /* Definitions for defaultTask */
 osThreadId_t defaultTaskHandle;
@@ -147,14 +149,23 @@ void StartDefaultTask(void *argument)
   MX_LWIP_Init();
   /* USER CODE BEGIN StartDefaultTask */
 
-  rmw_uros_set_custom_transport(
+  while(!netif_is_link_up(&gnetif))
+  {
+		osDelay(500);
+  }
+
+  auto ret = rmw_uros_set_custom_transport(
     true,
-	(void *) "192.168.10.102",
+	(void *) "192.168.10.13",
 	cubemx_transport_open,
 	cubemx_transport_close,
 	cubemx_transport_write,
 	cubemx_transport_read
   );
+  if(ret != RMW_RET_OK)
+  {
+	  while(1);
+  }
 
   rcl_allocator_t freeRTOS_allocator = rcutils_get_zero_initialized_allocator();
   freeRTOS_allocator.allocate = microros_allocate;
